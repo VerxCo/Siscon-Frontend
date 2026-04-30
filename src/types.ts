@@ -6,14 +6,6 @@ export interface AuthUser {
   is_active: boolean;
 }
 
-export interface LoginResponse {
-  access_token: string;
-  token_type: string;
-  user_id: string;
-  nome: string;
-  role: UserRole;
-}
-
 export interface LoginRequest {
   email: string;
   senha: string;

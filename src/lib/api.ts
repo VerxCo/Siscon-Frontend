@@ -4,8 +4,6 @@ import type {
   ConsignatariaListItem,
   ConvenioDetail,
   ConvenioListItem,
-  LoginRequest,
-  LoginResponse,
   ApiErrorPayload,
   VinculoDetail,
   VinculoListItem,
@@ -69,16 +67,6 @@ export class ApiClient {
     }
 
     return payload as T;
-  }
-
-  login(payload: LoginRequest): Promise<LoginResponse> {
-    return this.request('/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
   }
 
   me(): Promise<AuthUser> {

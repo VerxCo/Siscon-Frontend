@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import { ApiClient, ApiError } from './lib/api';
+import { signInWithSupabase } from './lib/supabaseAuth';
 import type {
   AuthUser,
   ConsignatariaDetail,
@@ -27,7 +28,6 @@ import type {
   EntityKind,
   FieldSpec,
   LoginRequest,
-  LoginResponse,
   VinculoDetail,
   VinculoListItem,
 } from './types';
@@ -182,7 +182,6 @@ const DEFAULT_VALUES: Record<EntityKind, FormValues> = {
 };
 
 function App() {
-  const publicApi = useMemo(() => new ApiClient(API_BASE_URL), []);
   const [token, setToken] = useState<string>(() => localStorage.getItem(TOKEN_KEY) ?? '');
   const authedApi = useMemo(() => new ApiClient(API_BASE_URL, token || undefined), [token]);
 
@@ -519,13 +518,8 @@ function App() {
     setError(null);
 
     try {
-      const response: LoginResponse = await publicApi.login(loginForm);
-      setToken(response.access_token);
-      setUser({
-        user_id: response.user_id,
-        role: response.role,
-        is_active: true,
-      });
+      const session = await signInWithSupabase(loginForm.email, loginForm.senha);
+      setToken(session.access_token);
       setLoginForm({ email: '', senha: '' });
       setNotice('Login realizado com sucesso.');
     } catch (err) {
