@@ -10,16 +10,37 @@ interface SupabaseTokenResponse {
   };
 }
 
+function normalizeEnvValue(name: string, value: string | undefined): string {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const assignmentMatch = trimmed.match(new RegExp(`^${name}\\s*=\\s*(.+)$`, 'i'));
+  return assignmentMatch ? assignmentMatch[1].trim() : trimmed;
+}
+
 function getSupabaseConfig() {
-  const url = import.meta.env.VITE_SUPABASE_URL?.trim();
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
+  const url = normalizeEnvValue('VITE_SUPABASE_URL', import.meta.env.VITE_SUPABASE_URL);
+  const anonKey = normalizeEnvValue('VITE_SUPABASE_ANON_KEY', import.meta.env.VITE_SUPABASE_ANON_KEY);
 
   if (!url || !anonKey) {
     throw new Error('Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Vercel.');
   }
 
+  let normalizedUrl = url.replace(/^\/+/, '').replace(/\/+$/, '');
+  if (!/^https?:\/\//i.test(normalizedUrl)) {
+    throw new Error('VITE_SUPABASE_URL precisa ser a URL base do Supabase, por exemplo https://<project>.supabase.co');
+  }
+
+  try {
+    normalizedUrl = new URL(normalizedUrl).toString().replace(/\/+$/, '');
+  } catch {
+    throw new Error('VITE_SUPABASE_URL invalida.');
+  }
+
   return {
-    url: url.replace(/\/+$/, ''),
+    url: normalizedUrl,
     anonKey,
   };
 }
