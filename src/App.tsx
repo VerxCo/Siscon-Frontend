@@ -613,8 +613,8 @@ function App() {
 
         <div className="sidebar-footer">
           <div className="session-card">
-            <span className="session-label">Usuario</span>
-            <strong>{user.user_id}</strong>
+            <span className="session-label">Bem vindo</span>
+            <strong>{user.full_name || user.user_id}</strong>
             <span className="session-meta">{user.role}</span>
           </div>
 

@@ -4,6 +4,7 @@ export interface AuthUser {
   user_id: string;
   role: UserRole;
   is_active: boolean;
+  full_name?: string | null;
 }
 
 export interface LoginRequest {
