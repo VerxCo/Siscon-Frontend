@@ -19,6 +19,7 @@ import {
 
 import { ApiClient, ApiError } from './lib/api';
 import { useAuth } from './contexts/AuthContext';
+import { ProtectedRoute } from './routes/ProtectedRoute';
 import { API_BASE_URL, TOKEN_KEY } from './constants';
 import type {
   AuthUser,
@@ -181,10 +182,9 @@ const DEFAULT_VALUES: Record<EntityKind, FormValues> = {
 };
 
 function App() {
-  const { user, token, bootstrapped, loading, signIn, signOut } = useAuth();
+  const { user, token, authStatus, signIn, signOut } = useAuth();
   const authedApi = useMemo(() => new ApiClient(API_BASE_URL, token || undefined), [token]);
 
-  const [loginForm, setLoginForm] = useState<LoginRequest>({ email: '', senha: '' });
   const [data, setData] = useState<DataState>({
     consignatarias: [],
     convenios: [],
@@ -237,10 +237,6 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!bootstrapped) {
-      return;
-    }
-
     if (!user) {
       setData({
         consignatarias: [],
@@ -277,7 +273,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [authedApi, bootstrapped, loadData, user]);
+  }, [authedApi, loadData, user]);
 
   const canWrite = user?.role === 'admin' || user?.role === 'editor';
 
@@ -483,22 +479,6 @@ function App() {
     }
   }
 
-   async function handleLogin(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy(true);
-    setError(null);
-
-    try {
-      await signIn(loginForm.email, loginForm.senha);
-      setLoginForm({ email: '', senha: '' });
-      setNotice('Login realizado com sucesso.');
-    } catch (err) {
-      setError(getErrorMessage(err, 'Falha ao autenticar.'));
-    } finally {
-      setBusy(false);
-    }
-  }
-
    async function handleLogout() {
     try {
       await signOut();
@@ -523,21 +503,9 @@ function App() {
     void loadData(authedApi);
   }
 
-  if (!user) {
-    return (
-      <LoginScreen
-        busy={busy}
-        error={error}
-        notice={notice}
-        form={loginForm}
-        onChange={setLoginForm}
-        onSubmit={handleLogin}
-      />
-    );
-  }
-
   return (
-    <div className="app-shell">
+    <ProtectedRoute>
+      <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">
@@ -588,8 +556,8 @@ function App() {
         <div className="sidebar-footer">
           <div className="session-card">
             <span className="session-label">Bem vindo</span>
-            <strong>{user.full_name || user.user_id}</strong>
-            <span className="session-meta">{user.role}</span>
+            <strong>{user?.full_name || user?.user_id}</strong>
+            <span className="session-meta">{user?.role}</span>
           </div>
 
           <button type="button" className="ghost-button" onClick={handleLogout}>
@@ -674,86 +642,8 @@ function App() {
       {modal ? (
         <EntityModal modal={modal} busy={saving} onClose={() => setModal(null)} onSave={handleSave} />
       ) : null}
-    </div>
-  );
-}
-
-function LoginScreen({
-  busy,
-  error,
-  notice,
-  form,
-  onChange,
-  onSubmit,
-}: {
-  busy: boolean;
-  error: string | null;
-  notice: string | null;
-  form: LoginRequest;
-  onChange: (value: LoginRequest) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}) {
-  return (
-    <main className="login-screen">
-      <section className="login-panel">
-        <div className="login-brand">
-          <Shield size={18} />
-          <span>Siscon</span>
-        </div>
-
-        <h1>Acesso ao painel</h1>
-        <p className="muted">Autenticacao via backend atual do projeto.</p>
-
-        {error ? (
-          <div className="banner banner-error">
-            <CircleAlert size={16} />
-            <span>{error}</span>
-          </div>
-        ) : null}
-
-        {notice ? (
-          <div className="banner banner-success">
-            <CheckCircle2 size={16} />
-            <span>{notice}</span>
-          </div>
-        ) : null}
-
-        <form className="login-form" onSubmit={onSubmit}>
-          <label className="field">
-            <span>Email</span>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(event) => onChange({ ...form, email: event.target.value })}
-              placeholder="admin@admin.com"
-              autoComplete="email"
-              required
-            />
-          </label>
-
-          <label className="field">
-            <span>Senha</span>
-            <input
-              type="password"
-              value={form.senha}
-              onChange={(event) => onChange({ ...form, senha: event.target.value })}
-              placeholder="123456"
-              autoComplete="current-password"
-              required
-            />
-          </label>
-
-          <button type="submit" className="primary-button" disabled={busy}>
-            {busy ? <LoaderCircle size={16} className="spin" /> : <Shield size={16} />}
-            Entrar
-          </button>
-        </form>
-
-        <div className="login-hint">
-          <strong>Perfis:</strong> admin, editor e viewer.
-        </div>
-      </section>
-    </main>
+      </div>
+    </ProtectedRoute>
   );
 }
 

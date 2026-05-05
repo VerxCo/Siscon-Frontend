@@ -1,10 +1,15 @@
 export type UserRole = 'admin' | 'editor' | 'viewer';
 
+export type AuthStatus = 'loading' | 'authenticated' | 'must_change_password' | 'unauthenticated';
+
 export interface AuthUser {
   user_id: string;
+  email?: string;
   role: UserRole;
   is_active: boolean;
   full_name?: string | null;
+  must_change_password?: boolean;
+  password_changed_at?: string | null;
 }
 
 export interface LoginRequest {

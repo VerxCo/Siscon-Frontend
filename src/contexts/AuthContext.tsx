@@ -1,16 +1,17 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import type { AuthUser } from '../types';
+import type { AuthUser, AuthStatus } from '../types';
 import * as authService from '../services/authService';
-import { API_BASE_URL, TOKEN_KEY } from '../constants';
+import * as userService from '../services/userService';
+import * as passwordService from '../services/passwordService';
+import { TOKEN_KEY } from '../constants';
 
-export interface AuthContextType {
+interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
-  loading: boolean;
-  bootstrapped: boolean;
-  authenticated: boolean;
+  authStatus: AuthStatus;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  completePasswordChange: (newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,36 +19,39 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem(TOKEN_KEY));
-  const [loading, setLoading] = useState(false);
-  const [bootstrapped, setBootstrapped] = useState(false);
-
-  const authenticated = !!user && !!token;
+  const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
 
   /**
-   * Restaura sessão ao montar o provider
-   * Tenta recuperar sessão do Supabase e sincronizar com backend customizado
+   * Centralized bootstrap: restore session + fetch profile
+   * Single source of truth for auth state transitions
    */
   useEffect(() => {
     async function bootstrap() {
       try {
         const session = await authService.getSession();
 
-        if (session.accessToken) {
-          // Sincroniza com backend customizado para obter perfil do usuário
-          const { ApiClient } = await import('../lib/api');
-const api = new ApiClient(API_BASE_URL, session.accessToken);          const meResp = await api.me();
+        if (!session.accessToken) {
+          setAuthStatus('unauthenticated');
+          return;
+        }
 
-          setToken(session.accessToken);
-          setUser(meResp);
-          localStorage.setItem(TOKEN_KEY, session.accessToken);
+        // Fetch profile from public.users (fail-safe: if fails, treat as unauthenticated)
+        const profile = await userService.getUserProfile(session.user?.id as string);
+        setUser(profile);
+        setToken(session.accessToken);
+        localStorage.setItem(TOKEN_KEY, session.accessToken);
+
+        if (profile.must_change_password) {
+          setAuthStatus('must_change_password');
+        } else {
+          setAuthStatus('authenticated');
         }
       } catch (err) {
-        console.error('Erro ao restaurar sessão:', err);
+        console.error('Erro no bootstrap:', err);
         localStorage.removeItem(TOKEN_KEY);
         setToken(null);
         setUser(null);
-      } finally {
-        setBootstrapped(true);
+        setAuthStatus('unauthenticated');
       }
     }
 
@@ -55,51 +59,74 @@ const api = new ApiClient(API_BASE_URL, session.accessToken);          const meR
   }, []);
 
   /**
-   * Login via authService + backend customizado
+   * Login: sign in via Supabase, then fetch profile
    */
   const signIn = useCallback(async (email: string, password: string) => {
-    setLoading(true);
+    setAuthStatus('loading');
     try {
       const session = await authService.signIn(email, password);
-
-      // Obtém perfil do backend customizado
-      const { ApiClient } = await import('../lib/api');
-      const api = new ApiClient(API_BASE_URL, session.accessToken);
-      const meResp = await api.me();
-
+      // session.accessToken is set by authService.signIn (which returns SignInResult)
+      // But our authService.signIn returns SignInResult with accessToken.
+      // We'll use that token to fetch profile.
+      const profile = await userService.getUserProfile(session.user?.id as string);
+      setUser(profile);
       setToken(session.accessToken);
-      setUser(meResp);
       localStorage.setItem(TOKEN_KEY, session.accessToken);
+
+      if (profile.must_change_password) {
+        setAuthStatus('must_change_password');
+      } else {
+        setAuthStatus('authenticated');
+      }
     } catch (err) {
+      setAuthStatus('unauthenticated');
       throw err;
-    } finally {
-      setLoading(false);
     }
   }, []);
 
   /**
-   * Logout via authService + limpeza local
+   * Logout: clear everything
    */
   const signOut = useCallback(async () => {
     try {
       await authService.signOut();
     } catch (err) {
-      console.error('Erro ao fazer logout no Supabase:', err);
+      console.error('Erro no logout:', err);
     } finally {
       localStorage.removeItem(TOKEN_KEY);
       setToken(null);
       setUser(null);
+      setAuthStatus('unauthenticated');
     }
   }, []);
+
+  /**
+   * Complete password change: called by PasswordChangeModal
+   * Fail-safe: only updates DB if Auth succeeds
+   */
+  const completePasswordChange = useCallback(async (newPassword: string) => {
+    if (!user?.user_id) throw new Error('Usuário não identificado');
+
+    setAuthStatus('loading');
+    try {
+      await passwordService.changePassword({ userId: user.user_id, newPassword });
+
+      // Update local user state
+      setUser((prev) => prev ? { ...prev, must_change_password: false, password_changed_at: new Date().toISOString() } : null);
+      setAuthStatus('authenticated');
+    } catch (err) {
+      setAuthStatus('must_change_password');
+      throw err;
+    }
+  }, [user?.user_id]);
 
   const value: AuthContextType = {
     user,
     token,
-    loading,
-    bootstrapped,
-    authenticated,
+    authStatus,
     signIn,
     signOut,
+    completePasswordChange,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
