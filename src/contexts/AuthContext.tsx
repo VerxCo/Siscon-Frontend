@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(TOKEN_KEY, session.accessToken);
 
         setAuthStatus('authenticated');
+        console.log('Profile must_change_password:', profile.must_change_password);
         setShowPasswordRecommendation(Boolean(profile.must_change_password));
       } catch (err) {
         console.error('Erro no bootstrap:', err);
