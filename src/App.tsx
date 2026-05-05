@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 import { ApiClient, ApiError } from './lib/api';
-import * as authService from './services/authService';
+import { useAuth } from './contexts/AuthContext';
 import type {
   AuthUser,
   ConsignatariaDetail,
@@ -182,11 +182,9 @@ const DEFAULT_VALUES: Record<EntityKind, FormValues> = {
 };
 
 function App() {
-  const [token, setToken] = useState<string>(() => localStorage.getItem(TOKEN_KEY) ?? '');
+  const { user, token, bootstrapped, loading, signIn, signOut } = useAuth();
   const authedApi = useMemo(() => new ApiClient(API_BASE_URL, token || undefined), [token]);
 
-  const [bootstrapped, setBootstrapped] = useState(false);
-  const [user, setUser] = useState<AuthUser | null>(null);
   const [loginForm, setLoginForm] = useState<LoginRequest>({ email: '', senha: '' });
   const [data, setData] = useState<DataState>({
     consignatarias: [],
@@ -213,22 +211,6 @@ function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setBootstrapped(true);
-  }, []);
-
-  useEffect(() => {
-    if (!bootstrapped) {
-      return;
-    }
-
-    if (token) {
-      localStorage.setItem(TOKEN_KEY, token);
-    } else {
-      localStorage.removeItem(TOKEN_KEY);
-    }
-  }, [bootstrapped, token]);
 
   const loadData = useCallback(async (client: ApiClient) => {
     const [consignatarias, convenios, vinculos] = await Promise.allSettled([
@@ -260,8 +242,7 @@ function App() {
       return;
     }
 
-    if (!token) {
-      setUser(null);
+    if (!user) {
       setData({
         consignatarias: [],
         convenios: [],
@@ -278,12 +259,6 @@ function App() {
       setBusy(true);
       setError(null);
       try {
-        const me = await authedApi.me();
-        if (cancelled) {
-          return;
-        }
-
-        setUser(me);
         await loadData(authedApi);
       } catch (err) {
         if (cancelled) {
@@ -303,7 +278,7 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [authedApi, bootstrapped, loadData, token]);
+  }, [authedApi, bootstrapped, loadData, user]);
 
   const canWrite = user?.role === 'admin' || user?.role === 'editor';
 
@@ -348,9 +323,6 @@ function App() {
   );
 
   function handleAuthError(err: unknown) {
-    setToken('');
-    setUser(null);
-
     if (err instanceof ApiError) {
       setError(err.message);
       return;
@@ -518,8 +490,7 @@ function App() {
     setError(null);
 
     try {
-      const session = await authService.signIn(loginForm.email, loginForm.senha);
-      setToken(session.accessToken);
+      await signIn(loginForm.email, loginForm.senha);
       setLoginForm({ email: '', senha: '' });
       setNotice('Login realizado com sucesso.');
     } catch (err) {
@@ -531,12 +502,10 @@ function App() {
 
    async function handleLogout() {
     try {
-      await authService.signOut();
+      await signOut();
     } catch (err) {
       console.error('Erro ao fazer logout no Supabase:', err);
     } finally {
-      setToken('');
-      setUser(null);
       setData({
         consignatarias: [],
         convenios: [],
