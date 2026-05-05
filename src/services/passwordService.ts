@@ -5,23 +5,16 @@ export interface ChangePasswordParams {
   newPassword: string;
 }
 
-/**
- * Fail-safe password change:
- * 1. Update password in Supabase Auth
- * 2. If success, update users table
- * 3. If any step fails, throw error and do NOT consider flow complete
- */
+
 export async function changePassword({ userId, newPassword }: ChangePasswordParams): Promise<void> {
-  // Step 1: Update password in Supabase Auth (fail-safe: if fails, do not update DB)
   const { error: authError } = await supabase.auth.updateUser({ password: newPassword });
 
   if (authError) {
     throw new Error(`Falha ao atualizar senha no Auth: ${authError.message}`);
   }
 
-  // Step 2: Update users table (only after Auth success)
   const { error: dbError } = await supabase
-    .from('users')
+    .from('app_user_profile')
     .update({
       must_change_password: false,
       password_changed_at: new Date().toISOString(),
