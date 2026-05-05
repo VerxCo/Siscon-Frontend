@@ -3,7 +3,7 @@ import type { AuthUser } from '../types';
 
 export async function getUserProfile(userId: string): Promise<AuthUser> {
   const { data, error } = await supabase
-    .from('users')
+    .from('app_user_profiles')
     .select('user_id, email, full_name, role, active, must_change_password, password_changed_at')
     .eq('user_id', userId)
     .single();
