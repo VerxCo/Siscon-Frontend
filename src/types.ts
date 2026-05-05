@@ -1,6 +1,6 @@
 export type UserRole = 'admin' | 'editor' | 'viewer';
 
-export type AuthStatus = 'loading' | 'authenticated' | 'must_change_password' | 'unauthenticated';
+export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
 export interface AuthUser {
   user_id: string;

@@ -9,9 +9,11 @@ interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
   authStatus: AuthStatus;
+  showPasswordRecommendation: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   completePasswordChange: (newPassword: string) => Promise<void>;
+  dismissPasswordRecommendation: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,11 +22,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem(TOKEN_KEY));
   const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
+  const [showPasswordRecommendation, setShowPasswordRecommendation] = useState(false);
 
-  /**
-   * Centralized bootstrap: restore session + fetch profile
-   * Single source of truth for auth state transitions
-   */
   useEffect(() => {
     async function bootstrap() {
       try {
@@ -35,17 +34,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        // Fetch profile from public.users (fail-safe: if fails, treat as unauthenticated)
         const profile = await userService.getUserProfile(session.user?.id as string);
         setUser(profile);
         setToken(session.accessToken);
         localStorage.setItem(TOKEN_KEY, session.accessToken);
 
-        if (profile.must_change_password) {
-          setAuthStatus('must_change_password');
-        } else {
-          setAuthStatus('authenticated');
-        }
+        setAuthStatus('authenticated');
+        setShowPasswordRecommendation(Boolean(profile.must_change_password));
       } catch (err) {
         console.error('Erro no bootstrap:', err);
         localStorage.removeItem(TOKEN_KEY);
@@ -58,52 +53,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     bootstrap();
   }, []);
 
-  /**
-   * Login: sign in via Supabase, then fetch profile
-   */
+
   const signIn = useCallback(async (email: string, password: string) => {
     setAuthStatus('loading');
     try {
       const session = await authService.signIn(email, password);
-      // session.accessToken is set by authService.signIn (which returns SignInResult)
-      // But our authService.signIn returns SignInResult with accessToken.
-      // We'll use that token to fetch profile.
+
       const profile = await userService.getUserProfile(session.user?.id as string);
       setUser(profile);
       setToken(session.accessToken);
       localStorage.setItem(TOKEN_KEY, session.accessToken);
 
-      if (profile.must_change_password) {
-        setAuthStatus('must_change_password');
-      } else {
-        setAuthStatus('authenticated');
-      }
+      setAuthStatus('authenticated');
+      setShowPasswordRecommendation(Boolean(profile.must_change_password));
     } catch (err) {
       setAuthStatus('unauthenticated');
       throw err;
     }
   }, []);
 
-  /**
-   * Logout: clear everything
-   */
-  const signOut = useCallback(async () => {
-    try {
-      await authService.signOut();
-    } catch (err) {
-      console.error('Erro no logout:', err);
-    } finally {
-      localStorage.removeItem(TOKEN_KEY);
-      setToken(null);
-      setUser(null);
-      setAuthStatus('unauthenticated');
-    }
-  }, []);
+   const signOut = useCallback(async () => {
+  try {
+    await authService.signOut();
+  } catch (err) {
+    console.error('Erro no logout:', err);
+  } finally {
+    localStorage.removeItem(TOKEN_KEY);
+    setToken(null);
+    setUser(null);
+    setAuthStatus('unauthenticated');
+    setShowPasswordRecommendation(false);
+  }
+}, []);
 
-  /**
-   * Complete password change: called by PasswordChangeModal
-   * Fail-safe: only updates DB if Auth succeeds
-   */
+
   const completePasswordChange = useCallback(async (newPassword: string) => {
     if (!user?.user_id) throw new Error('Usuário não identificado');
 
@@ -111,22 +94,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await passwordService.changePassword({ userId: user.user_id, newPassword });
 
-      // Update local user state
       setUser((prev) => prev ? { ...prev, must_change_password: false, password_changed_at: new Date().toISOString() } : null);
       setAuthStatus('authenticated');
+      setShowPasswordRecommendation(false); // Dismiss recommendation after change
     } catch (err) {
-      setAuthStatus('must_change_password');
+      setAuthStatus('authenticated'); // Stay authenticated even on error
       throw err;
     }
   }, [user?.user_id]);
+
+  const dismissPasswordRecommendation = useCallback(() => {
+    setShowPasswordRecommendation(false);
+  }, []);
 
   const value: AuthContextType = {
     user,
     token,
     authStatus,
+    showPasswordRecommendation,
     signIn,
     signOut,
     completePasswordChange,
+    dismissPasswordRecommendation,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

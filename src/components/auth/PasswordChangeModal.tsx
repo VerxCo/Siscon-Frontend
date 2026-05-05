@@ -1,7 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
-export function PasswordChangeModal() {
+interface PasswordChangeModalProps {
+  onClose: () => void;
+}
+
+export function PasswordChangeModal({ onClose }: PasswordChangeModalProps) {
   const { completePasswordChange, user } = useAuth();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -25,8 +29,7 @@ export function PasswordChangeModal() {
     setLoading(true);
     try {
       await completePasswordChange(newPassword);
-      // On success, AuthContext will change authStatus to 'authenticated'
-      // Modal will unmount via ProtectedRoute
+      onClose(); // Close modal on success
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao alterar senha');
     } finally {
@@ -34,10 +37,10 @@ export function PasswordChangeModal() {
     }
   }
 
-  // Block ESC key
+  // Allow ESC to close
   useState(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') e.preventDefault();
+      if (e.key === 'Escape') onClose();
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -57,7 +60,7 @@ export function PasswordChangeModal() {
         justifyContent: 'center',
         zIndex: 9999,
       }}
-      onClick={(e) => e.stopPropagation()} // Block outside click
+      onClick={onClose} // Close on outside click
     >
       <div
         style={{
@@ -66,71 +69,68 @@ export function PasswordChangeModal() {
           borderRadius: '8px',
           minWidth: '400px',
           maxWidth: '90vw',
+          position: 'relative',
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: '0.5rem',
+            right: '0.5rem',
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-secondary, #aaa)',
+            fontSize: '1.5rem',
+            cursor: 'pointer',
+          }}
+          aria-label="Fechar"
+        >
+          ×
+        </button>
         <h2 style={{ marginTop: 0, color: 'var(--text-primary, #fff)' }}>
-          Troca Obrigatória de Senha
+          Alterar Senha
         </h2>
         <p style={{ color: 'var(--text-secondary, #aaa)' }}>
           Usuário: {user?.full_name || user?.email}
-          <br />
-          Você deve alterar sua senha no primeiro acesso.
         </p>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-primary, #fff)' }}>
-              Nova Senha
-            </label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Mínimo 6 caracteres"
-              required
-              minLength={6}
-              style={{ width: '100%', padding: '0.5rem' }}
-            />
+          {/* ... existing form fields ... */}
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: 'transparent',
+                color: 'var(--text-secondary, #aaa)',
+                border: '1px solid var(--text-secondary, #aaa)',
+                borderRadius: '4px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: 'var(--accent, #646cff)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.7 : 1,
+              }}
+            >
+              {loading ? 'Alterando...' : 'Alterar Senha'}
+            </button>
           </div>
-
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-primary, #fff)' }}>
-              Confirmar Nova Senha
-            </label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Digite novamente"
-              required
-              minLength={6}
-              style={{ width: '100%', padding: '0.5rem' }}
-            />
-          </div>
-
-          {error && (
-            <div style={{ color: '#ff6b6b', marginBottom: '1rem', fontSize: '0.9rem' }}>
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              backgroundColor: 'var(--accent, #646cff)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.7 : 1,
-            }}
-          >
-            {loading ? 'Alterando...' : 'Alterar Senha'}
-          </button>
         </form>
       </div>
     </div>

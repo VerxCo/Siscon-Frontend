@@ -20,6 +20,7 @@ import {
 import { ApiClient, ApiError } from './lib/api';
 import { useAuth } from './contexts/AuthContext';
 import { ProtectedRoute } from './routes/ProtectedRoute';
+import { PasswordRecommendationModal } from './components/auth/PasswordRecommendationModal';
 import { API_BASE_URL, TOKEN_KEY } from './constants';
 import type {
   AuthUser,
@@ -182,7 +183,7 @@ const DEFAULT_VALUES: Record<EntityKind, FormValues> = {
 };
 
 function App() {
-  const { user, token, authStatus, signIn, signOut } = useAuth();
+  const { user, token, authStatus, showPasswordRecommendation, dismissPasswordRecommendation, signOut } = useAuth();
   const authedApi = useMemo(() => new ApiClient(API_BASE_URL, token || undefined), [token]);
 
   const [data, setData] = useState<DataState>({
@@ -503,9 +504,11 @@ function App() {
     void loadData(authedApi);
   }
 
-  return (
-    <ProtectedRoute>
-      <div className="app-shell">
+ return (
+  <ProtectedRoute>
+    <div className="app-shell">
+
+      {/* ================= SIDEBAR ================= */}
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">
@@ -542,6 +545,7 @@ function App() {
             <span>Consignatárias</span>
             <span className="menu-count">{consortiumViews.length}</span>
           </button>
+
           <button
             type="button"
             className={`menu-item ${activeTab === 'convenios' ? 'active' : ''}`}
@@ -567,11 +571,18 @@ function App() {
         </div>
       </aside>
 
+      {/* ================= MAIN ================= */}
       <main className="content">
+
         <header className="topbar">
           <div>
             <p className="eyebrow">Backend Siscon</p>
-            <h1>{activeTab === 'consignatarias' ? 'Consignatárias' : 'Convênios vinculados'}</h1>
+            <h1>
+              {activeTab === 'consignatarias'
+                ? 'Consignatárias'
+                : 'Convênios vinculados'}
+            </h1>
+
             <p className="muted">
               {activeTab === 'consignatarias'
                 ? 'Abra uma consignatária para entrar na aba de convênios ligados.'
@@ -580,7 +591,12 @@ function App() {
           </div>
 
           <div className="topbar-actions">
-            <button type="button" className="primary-button" onClick={refreshCurrent} disabled={saving || busy}>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={refreshCurrent}
+              disabled={saving || busy}
+            >
               <RefreshCw size={16} className={busy ? 'spin' : ''} />
               Atualizar
             </button>
@@ -589,20 +605,22 @@ function App() {
 
         <TabBar activeTab={activeTab} onChange={setActiveTab} />
 
-        {error ? (
+        {/* ================= ALERTAS ================= */}
+        {error && (
           <div className="banner banner-error">
             <CircleAlert size={16} />
             <span>{error}</span>
           </div>
-        ) : null}
+        )}
 
-        {notice ? (
+        {notice && (
           <div className="banner banner-success">
             <CheckCircle2 size={16} />
             <span>{notice}</span>
           </div>
-        ) : null}
+        )}
 
+        {/* ================= CONTENT ================= */}
         {activeTab === 'consignatarias' ? (
           <ConsignatariasTab
             rows={filteredConsignatarias}
@@ -630,21 +648,39 @@ function App() {
             onCreate={() =>
               openCreate(
                 'vinculos',
-                selectedConsignataria ? { consignataria_id: String(selectedConsignataria.id) } : {},
+                selectedConsignataria
+                  ? { consignataria_id: String(selectedConsignataria.id) }
+                  : {},
               )
             }
             canWrite={canWrite}
             busy={saving || busy}
           />
         )}
+
       </main>
 
-      {modal ? (
-        <EntityModal modal={modal} busy={saving} onClose={() => setModal(null)} onSave={handleSave} />
-      ) : null}
-      </div>
-    </ProtectedRoute>
-  );
+      {/* ================= MODAL CRUD ================= */}
+      {modal && (
+        <EntityModal
+          modal={modal}
+          busy={saving}
+          onClose={() => setModal(null)}
+          onSave={handleSave}
+        />
+      )}
+
+    </div>
+
+    {/* ================= PASSWORD RECOMMENDATION (NOVO MODELO) ================= */}
+    {showPasswordRecommendation && (
+      <PasswordRecommendationModal
+        onDismiss={dismissPasswordRecommendation}
+      />
+    )}
+
+  </ProtectedRoute>
+);
 }
 
 function TabBar({
