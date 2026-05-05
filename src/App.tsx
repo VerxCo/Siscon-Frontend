@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 import { ApiClient, ApiError } from './lib/api';
-import { signInWithSupabase } from './lib/supabaseAuth';
+import * as authService from './services/authService';
 import type {
   AuthUser,
   ConsignatariaDetail,
@@ -512,14 +512,14 @@ function App() {
     }
   }
 
-  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError(null);
 
     try {
-      const session = await signInWithSupabase(loginForm.email, loginForm.senha);
-      setToken(session.access_token);
+      const session = await authService.signIn(loginForm.email, loginForm.senha);
+      setToken(session.accessToken);
       setLoginForm({ email: '', senha: '' });
       setNotice('Login realizado com sucesso.');
     } catch (err) {
@@ -529,20 +529,26 @@ function App() {
     }
   }
 
-  function handleLogout() {
-    setToken('');
-    setUser(null);
-    setData({
-      consignatarias: [],
-      convenios: [],
-      vinculos: [],
-    });
-    setActiveTab('consignatarias');
-    setSelectedConsignatariaId(null);
-    setConsignatariaSearch('');
-    resetConvenioFilters();
-    setModal(null);
-    setNotice('Sessao encerrada.');
+   async function handleLogout() {
+    try {
+      await authService.signOut();
+    } catch (err) {
+      console.error('Erro ao fazer logout no Supabase:', err);
+    } finally {
+      setToken('');
+      setUser(null);
+      setData({
+        consignatarias: [],
+        convenios: [],
+        vinculos: [],
+      });
+      setActiveTab('consignatarias');
+      setSelectedConsignatariaId(null);
+      setConsignatariaSearch('');
+      resetConvenioFilters();
+      setModal(null);
+      setNotice('Sessao encerrada.');
+    }
   }
 
   function refreshCurrent() {
