@@ -14,7 +14,7 @@ export async function changePassword({ userId, newPassword }: ChangePasswordPara
   }
 
   const { error: dbError } = await supabase
-    .from('app_user_profile')
+    .from('app_user_profiles')
     .update({
       must_change_password: false,
       password_changed_at: new Date().toISOString(),
