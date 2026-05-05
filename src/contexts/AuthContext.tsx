@@ -1,8 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { AuthUser } from '../types';
 import * as authService from '../services/authService';
-
-const TOKEN_KEY = 'siscon.front.token';
+import { API_BASE_URL, TOKEN_KEY } from '../constants';
 
 export interface AuthContextType {
   user: AuthUser | null;
@@ -36,8 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session.accessToken) {
           // Sincroniza com backend customizado para obter perfil do usuário
           const { ApiClient } = await import('../lib/api');
-          const api = new ApiClient(session.accessToken);
-          const meResp = await api.me();
+const api = new ApiClient(API_BASE_URL, session.accessToken);          const meResp = await api.me();
 
           setToken(session.accessToken);
           setUser(meResp);
@@ -66,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Obtém perfil do backend customizado
       const { ApiClient } = await import('../lib/api');
-      const api = new ApiClient(session.accessToken);
+      const api = new ApiClient(API_BASE_URL, session.accessToken);
       const meResp = await api.me();
 
       setToken(session.accessToken);

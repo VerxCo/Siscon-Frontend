@@ -19,6 +19,7 @@ import {
 
 import { ApiClient, ApiError } from './lib/api';
 import { useAuth } from './contexts/AuthContext';
+import { API_BASE_URL, TOKEN_KEY } from './constants';
 import type {
   AuthUser,
   ConsignatariaDetail,
@@ -88,8 +89,6 @@ interface ConvenioFilters {
   ativo: TriState;
 }
 
-const TOKEN_KEY = 'siscon.front.token';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim() || 'http://127.0.0.1:8000';
 const ACCESS_STATUS_OPTIONS = [
   { value: '', label: 'Todos os status' },
   { value: 'ATIVO', label: 'ATIVO' },
