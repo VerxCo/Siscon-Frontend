@@ -5,14 +5,48 @@ export interface ChangePasswordParams {
   newPassword: string;
 }
 
+export async function changePassword({
+  userId,
+  newPassword,
+}: ChangePasswordParams): Promise<void> {
 
-export async function changePassword({ userId, newPassword }: ChangePasswordParams): Promise<void> {
-  const { error: authError } = await supabase.auth.updateUser({ password: newPassword });
+  console.log('Iniciando changePassword...');
 
-  if (authError) {
-    throw new Error(`Falha ao atualizar senha no Auth: ${authError.message}`);
+  // 🔐 validação básica
+  if (!newPassword || newPassword.length < 6) {
+    throw new Error('Senha inválida');
   }
 
+  // 🔐 garante sessão ativa
+  const { data: sessionData, error: sessionError } =
+    await supabase.auth.getSession();
+
+  console.log('Session data:', sessionData);
+  console.log('Session error:', sessionError);
+
+  if (sessionError) {
+    throw new Error('Erro na sessão: ' + sessionError.message);
+  }
+
+  if (!sessionData.session) {
+    throw new Error('Usuário não autenticado');
+  }
+
+  // 🔐 update password no Auth (usa sessão atual, NÃO userId)
+  console.log('Tentando updateUser...');
+
+  const { error: authError } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+
+  if (authError) {
+    console.log('Auth error:', authError);
+    throw new Error(
+      `Falha ao atualizar senha no Auth: ${authError.message}`,
+    );
+  }
+
+  // 🧠 update no banco
   const { error: dbError } = await supabase
     .from('app_user_profiles')
     .update({
@@ -23,8 +57,10 @@ export async function changePassword({ userId, newPassword }: ChangePasswordPara
     .eq('user_id', userId);
 
   if (dbError) {
-    // Auth password already changed, but DB update failed – inconsistent state
-    // In production, log this for manual reconciliation
-    throw new Error(`Senha alterada, mas falha ao atualizar perfil: ${dbError.message}. Contacte o administrador.`);
+    throw new Error(
+      `Senha alterada no Auth, mas falha ao atualizar perfil: ${dbError.message}`,
+    );
   }
+
+  console.log('Senha alterada com sucesso');
 }
