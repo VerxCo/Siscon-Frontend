@@ -73,23 +73,19 @@ const signIn = useCallback(async (email: string, password: string) => {
 
     setUser(profile);
     setToken(session.accessToken);
-
     localStorage.setItem(TOKEN_KEY, session.accessToken);
-
     setAuthStatus('authenticated');
-
-    setShowPasswordRecommendation(
-      Boolean(profile.must_change_password)
-    );
+    setShowPasswordRecommendation(Boolean(profile.must_change_password));
 
   } catch (err: any) {
+    console.error('Erro no login:', err);
+
+    // Primeiro restaurar o estado
     setAuthStatus('unauthenticated');
 
-    console.error(err);
-
-    throw new Error(
-      err?.message || 'Falha ao autenticar.'
-    );
+    // Depois lançar o erro para o LoginScreen capturar
+    const errorMessage = err?.message || 'Falha ao autenticar.';
+    throw new Error(errorMessage);
   }
 }, []);
 

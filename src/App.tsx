@@ -673,7 +673,6 @@ function App() {
     </div>
 
     {/* ================= PASSWORD RECOMMENDATION (NOVO MODELO) ================= */}
-    console.log('Profile must_change_password:', profile.must_change_password);
     {showPasswordRecommendation && (
       <PasswordRecommendationModal
         onDismiss={dismissPasswordRecommendation}

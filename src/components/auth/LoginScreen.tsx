@@ -16,24 +16,20 @@ export function LoginScreen() {
     setError(null);
     setNotice(null);
 
- try {
-  await signIn(form.email, form.senha);
+    try {
+      await signIn(form.email, form.senha);
 
-  setForm({ email: '', senha: '' });
+      setForm({ email: '', senha: '' });
 
-  setNotice('Login realizado com sucesso.');
+      setNotice('Login realizado com sucesso.');
+    } catch (err: any) {
+      console.error(err);
 
-} catch (err: any) {
-  console.error(err);
-
-  setError(
-    err?.message || 'Email ou senha inválidos.'
-  );
-
-} finally {
-  setBusy(false);
-}
-}
+      setError(err?.message || 'Email ou senha inválidos.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <main className="login-screen">

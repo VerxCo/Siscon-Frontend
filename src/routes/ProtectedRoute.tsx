@@ -4,7 +4,8 @@ import { LoginScreen } from '../components/auth/LoginScreen';
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { authStatus } = useAuth();
 
-  if (authStatus === 'loading') {
+  if (authStatus === 'loading' && localStorage.getItem('token')) {
+    // Só mostrar loading se há um token salvo (restaurando sessão)
     return (
       <div
         style={{
@@ -21,7 +22,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (authStatus === 'unauthenticated') {
+  // ✅ LoginScreen permanece visível mesmo em loading
+  if (authStatus !== 'authenticated') {
     return <LoginScreen />;
   }
 
