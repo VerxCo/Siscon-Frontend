@@ -33,6 +33,7 @@ export function LoginScreen() {
 } finally {
   setBusy(false);
 }
+}
 
   return (
     <main className="login-screen">
