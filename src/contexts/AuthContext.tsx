@@ -55,23 +55,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    setAuthStatus('loading');
-    try {
-      const session = await authService.signIn(email, password);
+const signIn = useCallback(async (email: string, password: string) => {
+  setAuthStatus('loading');
 
-      const profile = await userService.getUserProfile(session.user?.id as string);
-      setUser(profile);
-      setToken(session.accessToken);
-      localStorage.setItem(TOKEN_KEY, session.accessToken);
+  try {
+    const session = await authService.signIn(email, password);
 
-      setAuthStatus('authenticated');
-      setShowPasswordRecommendation(Boolean(profile.must_change_password));
-    } catch (err) {
-      setAuthStatus('unauthenticated');
-      throw err;
+    if (!session?.user?.id) {
+      throw new Error('Usuário não encontrado.');
     }
-  }, []);
+
+    const profile = await userService.getUserProfile(session.user.id);
+
+    if (!profile) {
+      throw new Error('Perfil do usuário não encontrado.');
+    }
+
+    setUser(profile);
+    setToken(session.accessToken);
+
+    localStorage.setItem(TOKEN_KEY, session.accessToken);
+
+    setAuthStatus('authenticated');
+
+    setShowPasswordRecommendation(
+      Boolean(profile.must_change_password)
+    );
+
+  } catch (err: any) {
+    setAuthStatus('unauthenticated');
+
+    console.error(err);
+
+    throw new Error(
+      err?.message || 'Falha ao autenticar.'
+    );
+  }
+}, []);
 
    const signOut = useCallback(async () => {
   try {
