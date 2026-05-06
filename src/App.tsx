@@ -5,7 +5,6 @@ import {
   CircleAlert,
   Link2,
   LoaderCircle,
-  LogOut,
   PencilLine,
   Plus,
   RefreshCw,
@@ -21,6 +20,7 @@ import { ApiClient, ApiError } from './lib/api';
 import { useAuth } from './contexts/AuthContext';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { PasswordRecommendationModal } from './components/auth/PasswordRecommendationModal';
+import { UserMenu } from './components/user/UserMenu';
 import { API_BASE_URL, TOKEN_KEY } from './constants';
 import type {
   AuthUser,
@@ -480,26 +480,6 @@ function App() {
     }
   }
 
-   async function handleLogout() {
-    try {
-      await signOut();
-    } catch (err) {
-      console.error('Erro ao fazer logout no Supabase:', err);
-    } finally {
-      setData({
-        consignatarias: [],
-        convenios: [],
-        vinculos: [],
-      });
-      setActiveTab('consignatarias');
-      setSelectedConsignatariaId(null);
-      setConsignatariaSearch('');
-      resetConvenioFilters();
-      setModal(null);
-      setNotice('Sessao encerrada.');
-    }
-  }
-
   function refreshCurrent() {
     void loadData(authedApi);
   }
@@ -558,16 +538,7 @@ function App() {
         </div>
 
         <div className="sidebar-footer">
-          <div className="session-card">
-            <span className="session-label">Bem vindo</span>
-            <strong>{user?.full_name || user?.user_id}</strong>
-            <span className="session-meta">{user?.role}</span>
-          </div>
-
-          <button type="button" className="ghost-button" onClick={handleLogout}>
-            <LogOut size={16} />
-            Sair
-          </button>
+          <UserMenu />
         </div>
       </aside>
 
