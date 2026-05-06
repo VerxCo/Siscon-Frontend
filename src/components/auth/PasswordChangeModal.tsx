@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface PasswordChangeModalProps {
@@ -12,7 +12,7 @@ export function PasswordChangeModal({ onClose }: PasswordChangeModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
 
@@ -29,7 +29,7 @@ export function PasswordChangeModal({ onClose }: PasswordChangeModalProps) {
     setLoading(true);
     try {
       await completePasswordChange(newPassword);
-      onClose(); // Close modal on success
+      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao alterar senha');
     } finally {
@@ -37,14 +37,14 @@ export function PasswordChangeModal({ onClose }: PasswordChangeModalProps) {
     }
   }
 
-  // Allow ESC to close
-  useState(() => {
+  // Block ESC key (prevent bypass)
+  useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') e.preventDefault();
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  });
+  }, []);
 
   return (
     <div
@@ -60,7 +60,7 @@ export function PasswordChangeModal({ onClose }: PasswordChangeModalProps) {
         justifyContent: 'center',
         zIndex: 9999,
       }}
-      onClick={onClose} // Close on outside click
+      onClick={onClose}
     >
       <div
         style={{
@@ -98,8 +98,80 @@ export function PasswordChangeModal({ onClose }: PasswordChangeModalProps) {
         </p>
 
         <form onSubmit={handleSubmit}>
-          {/* ... existing form fields ... */}
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+          <div style={{ marginBottom: '1rem' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                color: 'var(--text-primary, #fff)',
+              }}
+            >
+              Nova Senha
+            </label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Mínimo 6 caracteres"
+              required
+              minLength={6}
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                borderRadius: '4px',
+                border: '1px solid #444',
+                background: '#1f2937',
+                color: '#fff',
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '1rem' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                color: 'var(--text-primary, #fff)',
+              }}
+            >
+              Confirmar Nova Senha
+            </label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirme a nova senha"
+              required
+              minLength={6}
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                borderRadius: '4px',
+                border: '1px solid #444',
+                background: '#1f2937',
+                color: '#fff',
+              }}
+            />
+          </div>
+
+          {error && (
+            <div
+              style={{
+                color: '#ef4444',
+                marginBottom: '1rem',
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          <div
+            style={{
+              display: 'flex',
+              gap: '1rem',
+              justifyContent: 'flex-end',
+            }}
+          >
             <button
               type="button"
               onClick={onClose}
