@@ -28,17 +28,40 @@ import type {
   ConsignatariaListItem,
   ConvenioDetail,
   ConvenioListItem,
+  ConsignatariaView,
+  LinkedConvenioView,
+  ConvenioFilters,
   EntityKind,
   FieldSpec,
+  FormValues,
   LoginRequest,
+  TriState,
   VinculoDetail,
   VinculoListItem,
 } from './types';
 
+import {
+  FIELD_SPECS,
+  DEFAULT_VALUES,
+  ACCESS_STATUS_OPTIONS
+} from './constants/schema';
+
+import {
+  mapConsignatariaToValues,
+  mapConvenioToValues,
+  mapVinculoToValues,
+  serializeValues,
+  normalizedName
+} from './utils/mappers';
+
+import {
+  buildConsignatariaViews,
+  filterLinkedConvenios,
+  summarizeLinkedConvenios
+} from './utils/filters';
+
 type ModalMode = 'create' | 'edit';
-type FormValues = Record<string, string | boolean>;
 type ActiveTab = 'consignatarias' | 'convenios';
-type TriState = 'all' | 'yes' | 'no';
 
 interface ModalState {
   kind: EntityKind;
@@ -53,134 +76,6 @@ interface DataState {
   convenios: ConvenioListItem[];
   vinculos: VinculoListItem[];
 }
-
-interface LinkedConvenioView {
-  vinculoId: number;
-  convenioId: number;
-  convenioNome: string;
-  convenioNormalizado: string;
-  qtdServidores: number | null;
-  cnpj: string;
-  possuiBase: boolean;
-  fonteBase: string;
-  fonteLinha: number | null;
-  linkPortal: string;
-  possuiRobo: boolean;
-  statusAcesso: string;
-  fazNaAmigoz: boolean;
-  margemOnline: boolean;
-  possuiPortal: boolean;
-  dataSolicitacao: string;
-  ativo: boolean;
-}
-
-interface ConsignatariaView extends ConsignatariaListItem {
-  linkedConvenios: LinkedConvenioView[];
-}
-
-interface ConvenioFilters {
-  search: string;
-  statusAcesso: string;
-  minServidores: string;
-  maxServidores: string;
-  possuiBase: TriState;
-  possuiPortal: TriState;
-  possuiRobo: TriState;
-  fazNaAmigoz: TriState;
-  margemOnline: TriState;
-  ativo: TriState;
-}
-
-const ACCESS_STATUS_OPTIONS = [
-  { value: '', label: 'Todos os status' },
-  { value: 'ATIVO', label: 'ATIVO' },
-  { value: 'SOLICITAR', label: 'SOLICITAR' },
-  { value: 'SOLICITADO', label: 'SOLICITADO' },
-  { value: 'EM_ANDAMENTO', label: 'EM ANDAMENTO' },
-  { value: 'RECUSADO', label: 'RECUSADO' },
-];
-
-const STATUS_ACESSO_OPTIONS = [
-  { value: '1', label: 'ATIVO' },
-  { value: '2', label: 'SOLICITAR' },
-  { value: '3', label: 'SOLICITADO' },
-  { value: '4', label: 'EM ANDAMENTO' },
-  { value: '5', label: 'RECUSADO' },
-];
-
-const FIELD_SPECS: Record<EntityKind, FieldSpec[]> = {
-  consignatarias: [
-    { key: 'nome', label: 'Nome', type: 'text', required: true, placeholder: 'Consignataria' },
-    { key: 'ativo', label: 'Ativo', type: 'boolean' },
-  ],
-  convenios: [
-    { key: 'nome', label: 'Nome', type: 'text', required: true, placeholder: 'Convenio' },
-    {
-      key: 'nome_normalizado',
-      label: 'Nome normalizado',
-      type: 'text',
-      required: true,
-      placeholder: 'convenio-normalizado',
-      help: 'Se vazio, o sistema gera um valor padrao.',
-    },
-    { key: 'ativo', label: 'Ativo', type: 'boolean' },
-  ],
-  vinculos: [
-    { key: 'convenio_id', label: 'Convenio ID', type: 'number', required: true, step: '1' },
-    {
-      key: 'consignataria_id',
-      label: 'Consignataria ID',
-      type: 'number',
-      required: true,
-      step: '1',
-    },
-    { key: 'produto_nome', label: 'Produto', type: 'text', placeholder: 'Produto' },
-    { key: 'qtd_servidores', label: 'Qtd. servidores', type: 'number', step: '1' },
-    { key: 'cnpj', label: 'CNPJ', type: 'text', placeholder: '00.000.000/0000-00' },
-    { key: 'possui_base', label: 'Possui base', type: 'boolean' },
-    { key: 'possui_portal', label: 'Possui portal', type: 'boolean' },
-    { key: 'fonte_aba', label: 'Origem da base - Aba', type: 'text', placeholder: 'Aba da planilha' },
-    { key: 'fonte_linha', label: 'Origem da base - Linha', type: 'number', step: '1' },
-    { key: 'link_portal', label: 'Acesso ao Portal', type: 'text', placeholder: 'https://...' },
-    {
-      key: 'status_acesso_id',
-      label: 'ACESSO PORTAL',
-      type: 'select',
-      options: STATUS_ACESSO_OPTIONS,
-      help: 'Estados reais da tabela status_acesso.',
-    },
-    { key: 'data_solicitacao', label: 'Data solicitacao', type: 'date' },
-    { key: 'possui_robo', label: 'Possui robo', type: 'boolean' },
-    { key: 'faz_na_amigoz', label: 'Faz na amigoz', type: 'boolean' },
-    { key: 'margem_online', label: 'Margem online', type: 'boolean' },
-    { key: 'observacao', label: 'Observacao', type: 'textarea', rows: 4 },
-    { key: 'ativo', label: 'Ativo', type: 'boolean' },
-  ],
-};
-
-const DEFAULT_VALUES: Record<EntityKind, FormValues> = {
-  consignatarias: { nome: '', ativo: true },
-  convenios: { nome: '', nome_normalizado: '', ativo: true },
-  vinculos: {
-    convenio_id: '',
-    consignataria_id: '',
-    produto_nome: '',
-    qtd_servidores: '',
-    cnpj: '',
-    possui_base: false,
-    possui_portal: false,
-    fonte_aba: '',
-    fonte_linha: '',
-    link_portal: '',
-    status_acesso_id: '',
-    data_solicitacao: '',
-    possui_robo: false,
-    faz_na_amigoz: false,
-    margem_online: false,
-    observacao: '',
-    ativo: true,
-  },
-};
 
 function App() {
   const { user, token, authStatus, showPasswordRecommendation, dismissPasswordRecommendation, signOut } = useAuth();
@@ -1167,7 +1062,7 @@ function EntityModal({
     }
   }
 
-  const fields = FIELD_SPECS[modal.kind];
+  const fields = FIELD_SPECS[modal.kind]
 
   return (
     <div className="modal-backdrop" onClick={onClose} role="presentation">
@@ -1258,282 +1153,6 @@ function getKindLabel(kind: EntityKind): string {
   if (kind === 'consignatarias') return 'Consignatarias';
   if (kind === 'convenios') return 'Convenios';
   return 'Vinculos';
-}
-
-function normalizedName(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-function cleanString(value: string | boolean | undefined): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function toNumberOrNull(value: string | boolean | undefined): number | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function parseRequiredInt(value: string | boolean | undefined, label: string): number {
-  const parsed = toNumberOrNull(value);
-  if (parsed == null) {
-    throw new Error(`${label} e obrigatorio.`);
-  }
-
-  return parsed;
-}
-
-function mapConsignatariaToValues(item: ConsignatariaDetail): FormValues {
-  return {
-    nome: item.nome ?? '',
-    ativo: item.ativo,
-  };
-}
-
-function mapConvenioToValues(item: ConvenioDetail): FormValues {
-  return {
-    nome: item.nome ?? '',
-    nome_normalizado: item.nome_normalizado ?? '',
-    ativo: item.ativo,
-  };
-}
-
-function mapVinculoToValues(item: VinculoDetail): FormValues {
-  return {
-    convenio_id: item.convenio_id ? String(item.convenio_id) : '',
-    consignataria_id: item.consignataria_id ? String(item.consignataria_id) : '',
-    produto_nome: item.produto_nome ?? '',
-    qtd_servidores: item.qtd_servidores != null ? String(item.qtd_servidores) : '',
-    cnpj: item.cnpj ?? '',
-    possui_base: Boolean(item.possui_base),
-    possui_portal: Boolean(item.possui_portal),
-    link_portal: item.link_portal ?? '',
-    fonte_aba: item.fonte_aba ?? '',
-    fonte_linha: item.fonte_linha != null ? String(item.fonte_linha) : '',
-    status_acesso_id: item.status_acesso_id != null ? String(item.status_acesso_id) : '',
-    data_solicitacao: item.data_solicitacao ? item.data_solicitacao.slice(0, 10) : '',
-    possui_robo: Boolean(item.possui_robo),
-    faz_na_amigoz: Boolean(item.faz_na_amigoz),
-    margem_online: Boolean(item.margem_online),
-    observacao: item.observacao ?? '',
-    ativo: item.ativo,
-  };
-}
-
-function serializeValues(kind: EntityKind, values: FormValues): Record<string, unknown> {
-  if (kind === 'consignatarias') {
-    const nome = cleanString(values.nome);
-    if (!nome) {
-      throw new Error('Nome e obrigatorio.');
-    }
-
-    return {
-      nome,
-      ativo: Boolean(values.ativo),
-    };
-  }
-
-  if (kind === 'convenios') {
-    const nome = cleanString(values.nome);
-    if (!nome) {
-      throw new Error('Nome e obrigatorio.');
-    }
-
-    const nomeNormalizado = cleanString(values.nome_normalizado) ?? normalizedName(nome);
-
-    return {
-      nome,
-      nome_normalizado: nomeNormalizado,
-      ativo: Boolean(values.ativo),
-    };
-  }
-
-  const convenioId = parseRequiredInt(values.convenio_id, 'Convenio ID');
-  const consignatariaId = parseRequiredInt(values.consignataria_id, 'Consignataria ID');
-
-  return {
-    convenio_id: convenioId,
-    consignataria_id: consignatariaId,
-    produto_nome: cleanString(values.produto_nome),
-    qtd_servidores: toNumberOrNull(values.qtd_servidores),
-    cnpj: cleanString(values.cnpj),
-    possui_base: Boolean(values.possui_base),
-    possui_portal: Boolean(values.possui_portal),
-    link_portal: cleanString(values.link_portal),
-    fonte_aba: cleanString(values.fonte_aba),
-    fonte_linha: toNumberOrNull(values.fonte_linha),
-    status_acesso_id: toNumberOrNull(values.status_acesso_id),
-    data_solicitacao: cleanString(values.data_solicitacao),
-    possui_robo: Boolean(values.possui_robo),
-    faz_na_amigoz: Boolean(values.faz_na_amigoz),
-    margem_online: Boolean(values.margem_online),
-    observacao: cleanString(values.observacao),
-    ativo: Boolean(values.ativo),
-  };
-}
-
-function buildConsignatariaViews(
-  consignatarias: ConsignatariaListItem[],
-  convenios: ConvenioListItem[],
-  vinculos: VinculoListItem[],
-): ConsignatariaView[] {
-  const convenioMap = new Map(convenios.map((item) => [item.id, item]));
-
-  return consignatarias.map((consignataria) => {
-    const linkedConvenios = vinculos
-      .filter((item) => item.consignataria_id === consignataria.id)
-      .map((item) => {
-        const convenio = convenioMap.get(item.convenio_id);
-
-        return {
-          vinculoId: item.id,
-          convenioId: item.convenio_id,
-          convenioNome: convenio?.nome ?? `Convenio #${item.convenio_id}`,
-          convenioNormalizado: convenio?.nome_normalizado ?? '-',
-          qtdServidores: item.qtd_servidores ?? null,
-          cnpj: item.cnpj ?? '-',
-          possuiBase: Boolean(item.possui_base),
-          fonteBase:
-            item.fonte_aba != null || item.fonte_linha != null
-              ? `${item.fonte_aba ?? '-'}${item.fonte_linha != null ? ` / ${item.fonte_linha}` : ''}`
-              : '-',
-          fonteLinha: item.fonte_linha ?? null,
-          linkPortal: item.link_portal ?? '-',
-          possuiRobo: Boolean(item.possui_robo),
-          statusAcesso: item.status_acesso ?? '-',
-          fazNaAmigoz: Boolean(item.faz_na_amigoz),
-          margemOnline: Boolean(item.margem_online),
-          possuiPortal: Boolean(item.possui_portal),
-          dataSolicitacao: item.data_solicitacao ? item.data_solicitacao.slice(0, 10) : '-',
-          ativo: item.ativo,
-        };
-      })
-      .sort((left, right) => left.convenioNome.localeCompare(right.convenioNome, 'pt-BR'));
-
-    return {
-      ...consignataria,
-      linkedConvenios,
-    };
-  });
-}
-
-function filterLinkedConvenios(rows: LinkedConvenioView[], filters: ConvenioFilters): LinkedConvenioView[] {
-  const search = normalizeText(filters.search);
-  const minServidores = toNumberOrNull(filters.minServidores);
-  const maxServidores = toNumberOrNull(filters.maxServidores);
-
-  return rows.filter((item) => {
-    if (search) {
-      const searchable = normalizeText(
-        [
-          item.convenioNome,
-          item.convenioNormalizado,
-          item.cnpj,
-          item.fonteBase,
-          item.linkPortal,
-          item.statusAcesso,
-          item.dataSolicitacao,
-        ]
-          .filter(Boolean)
-          .join(' '),
-      );
-
-      if (!searchable.includes(search)) {
-        return false;
-      }
-    }
-
-    if (filters.statusAcesso && normalizeAccessStatus(item.statusAcesso) !== filters.statusAcesso) {
-      return false;
-    }
-
-    if (minServidores != null && (item.qtdServidores ?? 0) < minServidores) {
-      return false;
-    }
-
-    if (maxServidores != null && (item.qtdServidores ?? 0) > maxServidores) {
-      return false;
-    }
-
-    if (!matchesTriState(item.possuiBase, filters.possuiBase)) return false;
-    if (!matchesTriState(item.possuiPortal, filters.possuiPortal)) return false;
-    if (!matchesTriState(item.possuiRobo, filters.possuiRobo)) return false;
-    if (!matchesTriState(item.fazNaAmigoz, filters.fazNaAmigoz)) return false;
-    if (!matchesTriState(item.margemOnline, filters.margemOnline)) return false;
-    if (!matchesTriState(item.ativo, filters.ativo)) return false;
-
-    return true;
-  });
-}
-
-function summarizeConsignatarias(rows: ConsignatariaView[]) {
-  const totalServidores = rows.reduce(
-    (sum, consignataria) =>
-      sum +
-      consignataria.linkedConvenios.reduce(
-        (linkedSum, item) => linkedSum + (item.qtdServidores ?? 0),
-        0,
-      ),
-    0,
-  );
-
-  const totalVinculos = rows.reduce((sum, consignataria) => sum + consignataria.linkedConvenios.length, 0);
-  const consignatariasAtivas = rows.filter((item) => item.ativo).length;
-
-  return {
-    total: rows.length,
-    active: consignatariasAtivas,
-    links: totalVinculos,
-    servers: totalServidores,
-  };
-}
-
-function summarizeLinkedConvenios(rows: LinkedConvenioView[]) {
-  return {
-    total: rows.length,
-    servers: rows.reduce((sum, item) => sum + (item.qtdServidores ?? 0), 0),
-    withBase: rows.filter((item) => item.possuiBase).length,
-    withPortal: rows.filter((item) => item.possuiPortal).length,
-    withRobo: rows.filter((item) => item.possuiRobo).length,
-    active: rows.filter((item) => item.ativo).length,
-  };
-}
-
-function matchesTriState(value: boolean, filter: TriState): boolean {
-  if (filter === 'all') {
-    return true;
-  }
-
-  return filter === 'yes' ? value : !value;
-}
-
-function normalizeText(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-}
-
-function normalizeAccessStatus(value: string): string {
-  return value.toUpperCase().replace(/[\s-]+/g, '_');
 }
 
 function mergeFormValues(base: FormValues, extra: Partial<FormValues>): FormValues {

@@ -96,6 +96,47 @@ export interface FieldOption {
   value: string;
 }
 
+export type FormValues = Record<string, string | boolean>;
+
+export type TriState = 'all' | 'yes' | 'no';
+
+export interface ConvenioFilters {
+  search: string;
+  statusAcesso: string;
+  minServidores: string;
+  maxServidores: string;
+  possuiBase: TriState;
+  possuiPortal: TriState;
+  possuiRobo: TriState;
+  fazNaAmigoz: TriState;
+  margemOnline: TriState;
+  ativo: TriState;
+}
+
+export interface LinkedConvenioView {
+  vinculoId: number;
+  convenioId: number;
+  convenioNome: string;
+  convenioNormalizado: string;
+  qtdServidores: number | null;
+  cnpj: string;
+  possuiBase: boolean;
+  fonteBase: string;
+  fonteLinha: number | null;
+  linkPortal: string;
+  possuiRobo: boolean;
+  statusAcesso: string;
+  fazNaAmigoz: boolean;
+  margemOnline: boolean;
+  possuiPortal: boolean;
+  dataSolicitacao: string;
+  ativo: boolean;
+}
+
+export interface ConsignatariaView extends ConsignatariaListItem {
+  linkedConvenios: LinkedConvenioView[];
+}
+
 export interface FieldSpec {
   key: string;
   label: string;
