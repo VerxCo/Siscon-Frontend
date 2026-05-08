@@ -1,9 +1,8 @@
 import { useMemo } from 'react';
-import { CheckCircle2, CircleAlert } from 'lucide-react';
-
+import { TabBar } from './components/shared/TabBar';
 import { Sidebar } from './components/layout/Sidebar';
 import { Topbar } from './components/layout/Topbar';
-import { TabBar } from './components/shared/TabBar';
+import { Banners } from './components/layout/Banners';
 import { useConvenioFilters } from './features/convenios/hooks/useConvenioFilters';
 import { useDashboardData } from './hooks/useDashboardData';
 import { useCrudModal } from './hooks/useCrudModal';
@@ -65,19 +64,7 @@ function App() {
 
           <TabBar activeTab={activeTab} onChange={setActiveTab} />
 
-          {error && (
-            <div className="banner banner-error">
-              <CircleAlert size={16} />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {notice && (
-            <div className="banner banner-success">
-              <CheckCircle2 size={16} />
-              <span>{notice}</span>
-            </div>
-          )}
+          <Banners error={error} notice={notice} />
 
           {activeTab === 'consignatarias' ? (
             <ConsignatariasTab
