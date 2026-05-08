@@ -133,6 +133,18 @@ export interface LinkedConvenioView {
   ativo: boolean;
 }
 
+export type ActiveTab = 'consignatarias' | 'convenios';
+
+export type ModalMode = 'create' | 'edit';
+
+export interface ModalState {
+  kind: EntityKind;
+  mode: ModalMode;
+  id?: number;
+  title: string;
+  values: FormValues;
+}
+
 export interface ConsignatariaView extends ConsignatariaListItem {
   linkedConvenios: LinkedConvenioView[];
 }
